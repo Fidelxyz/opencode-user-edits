@@ -4,7 +4,7 @@ Let the agent know what you edited.
 
 An OpenCode V2 plugin that tells the agent which files changed outside the agent between turns.
 
-When a session's execution ends, the plugin snapshots the git worktree. When you send the next prompt, it snapshots
+When a session's execution ends, the plugin snapshots the Git worktree. When you send the next prompt, it snapshots
 again and attaches the difference to your message.
 
 ## What the agent receives
@@ -14,8 +14,6 @@ again and attaches the difference to your message.
 
 When HEAD moved, for example after a commit or a branch switch, the agent also learns the old and new commits.
 
-Diffs are computed with git, so the plugin works only in git repositories.
-
 ## Storage
 
 Snapshots live in `$XDG_DATA_HOME/opencode/user-edits` (default `~/.local/share/opencode/user-edits`). They
@@ -24,6 +22,7 @@ untouched. A session's snapshots are cleaned up after the session is deleted.
 
 ## Limitations
 
+- Diffs are computed with Git, so the plugin works only in Git repositories.
 - Edits made while the agent is running are not reported.
 - Edits from another session in the same worktree, or from background processes the agent started, are reported as
   your edits.
