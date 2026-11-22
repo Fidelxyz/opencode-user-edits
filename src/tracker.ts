@@ -1,4 +1,6 @@
-import { createKeyedQueue, type KeyedQueue } from "./queue.ts";
+import type { SessionForkBoundary as ForkBoundary } from "@opencode/client";
+
+import { createKeyedQueue } from "./queue.ts";
 import { describeUserEdits, type UserEdits } from "./report.ts";
 import {
   CURRENT_BASELINE,
@@ -15,12 +17,6 @@ export interface TrackedSession {
   readonly directory: string;
   /** First message a staged revert removes. */
   readonly revertMessageID: string | undefined;
-}
-
-/** Fork point: "before" excludes the message, "through" includes it. Structurally matches Session.ForkBoundary. */
-export interface ForkBoundary {
-  readonly type: "before" | "through";
-  readonly messageID: string;
 }
 
 export interface DiffTrackerDeps {
@@ -44,7 +40,7 @@ export interface DiffTracker {
 
 export function createDiffTracker(deps: DiffTrackerDeps): DiffTracker {
   const running = new Set<string>();
-  const sessionQueue: KeyedQueue = createKeyedQueue();
+  const sessionQueue = createKeyedQueue();
 
   async function locateSession(
     sessionID: string,
@@ -60,28 +56,11 @@ export function createDiffTracker(deps: DiffTrackerDeps): DiffTracker {
     return { tree: await deps.store.capture(worktree), head: await findHead(worktree) };
   }
 
-  async function captureCurrentBaseline(sessionID: string): Promise<void> {
-    const located = await locateSession(sessionID);
-    if (located === undefined) return;
-
-    const { worktree } = located;
-    await deps.store.saveBaseline(worktree, sessionID, CURRENT_BASELINE, await captureWorktree(worktree));
-  }
-
   async function rewindCurrentBaseline(worktree: Worktree, sessionID: string, messageID: string): Promise<void> {
     const baseline =
       (await deps.store.readBaseline(worktree, sessionID, promptBaseline(messageID))) ??
       (await captureWorktree(worktree));
     await deps.store.saveBaseline(worktree, sessionID, CURRENT_BASELINE, baseline);
-  }
-
-  async function forkPointBaseline(
-    worktree: Worktree,
-    parentID: string,
-    boundary: ForkBoundary,
-  ): Promise<Baseline | undefined> {
-    const slot = boundary.type === "before" ? promptBaseline(boundary.messageID) : CURRENT_BASELINE;
-    return deps.store.readBaseline(worktree, parentID, slot);
   }
 
   return {
@@ -92,7 +71,13 @@ export function createDiffTracker(deps: DiffTrackerDeps): DiffTracker {
     captureBaseline(sessionID) {
       running.delete(sessionID);
 
-      return sessionQueue.run(sessionID, () => captureCurrentBaseline(sessionID));
+      return sessionQueue.run(sessionID, async () => {
+        const located = await locateSession(sessionID);
+        if (located === undefined) return;
+
+        const { worktree } = located;
+        await deps.store.saveBaseline(worktree, sessionID, CURRENT_BASELINE, await captureWorktree(worktree));
+      });
     },
 
     userEdits(sessionID, messageID) {
@@ -136,7 +121,8 @@ export function createDiffTracker(deps: DiffTrackerDeps): DiffTracker {
         if (located === undefined) return;
 
         const { worktree } = located;
-        const baseline = await forkPointBaseline(worktree, parentID, boundary);
+        const slot = boundary.type === "before" ? promptBaseline(boundary.messageID) : CURRENT_BASELINE;
+        const baseline = await deps.store.readBaseline(worktree, parentID, slot);
         if (baseline !== undefined) await deps.store.saveBaseline(worktree, sessionID, CURRENT_BASELINE, baseline);
       });
     },

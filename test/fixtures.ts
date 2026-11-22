@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { DateTime } from "effect";
 import { afterEach, vi } from "vitest";
 import { Message } from "@opencode/ai/effect";
+import type { SessionForkBoundary as ForkBoundary } from "@opencode/client";
 import type { Plugin } from "@opencode/plugin";
 import type { SessionContext, SessionPrompt } from "@opencode/plugin/promise/session";
 import { Agent } from "@opencode/schema/agent";
@@ -14,7 +15,6 @@ import { Session } from "@opencode/schema/session";
 import { SessionID } from "@opencode/schema/session-id";
 import { SessionMessage } from "@opencode/schema/session-message";
 import { createSnapshotStore, type SnapshotStore } from "../src/snapshot.ts";
-import type { ForkBoundary } from "../src/tracker.ts";
 
 const execFileAsync = promisify(execFile);
 
