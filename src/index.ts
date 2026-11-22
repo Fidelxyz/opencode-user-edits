@@ -25,7 +25,6 @@ async function setup(ctx: Plugin.Context): Promise<Plugin.Cleanup> {
       const edits = await tracker.userEdits(event.sessionID, event.messageID);
       if (edits !== undefined) event.metadata = attachUserEdits(event.metadata, edits);
     } catch (error) {
-      // Never block the prompt: it goes through without edits.
       reportError("failed to compute user edits", error);
     }
   });
@@ -55,17 +54,15 @@ async function watchSessionEvents(ctx: Plugin.Context, tracker: DiffTracker, sig
   const handlers = new Set<Promise<void>>();
 
   while (!signal.aborted) {
+    let failure: unknown;
     try {
       await dispatchSessionEvents(ctx, tracker, signal, handlers);
-      if (signal.aborted) break;
-
-      reportError("event subscription ended, resubscribing");
     } catch (error) {
-      if (signal.aborted) break;
-
-      reportError("event subscription failed, resubscribing", error);
+      failure = error;
     }
+    if (signal.aborted) break;
 
+    reportError("event subscription stopped, resubscribing", failure);
     await delay(RESUBSCRIBE_DELAY_MS, undefined, { signal }).catch(() => undefined);
   }
 
@@ -105,11 +102,11 @@ async function dispatchSessionEvents(
   }
 }
 
-function handleSessionEvent(tracker: DiffTracker, event: TrackedSessionEvent): Promise<void> {
+async function handleSessionEvent(tracker: DiffTracker, event: TrackedSessionEvent): Promise<void> {
   switch (event.type) {
     case "session.execution.started":
       tracker.markRunning(event.data.sessionID);
-      return Promise.resolve();
+      return;
     case "session.execution.succeeded":
     case "session.execution.failed":
     case "session.execution.interrupted":
