@@ -3,25 +3,26 @@
   "version": "0.1.0",
   "description": "Let the agent know what you edited",
   "keywords": [
-    "opencode",
-    "plugin",
     "diff",
-    "edit"
+    "edit",
+    "opencode",
+    "plugin"
   ],
   "license": "MIT",
   "author": "Fidel Yin <fidel.yin@hotmail.com>",
   "files": [
     "src"
   ],
+  "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
-  "type": "module",
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "lint": "oxlint",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
   },
   "dependencies": {
     "@opencode/ai": "^2.3.2",
@@ -33,7 +34,8 @@
     "@types/bun": "^1.4.5",
     "@types/node": "^26.6.6",
     "effect": "4.1.0",
-    "prettier": "^3.10.1",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
     "typescript": "^7.0.2",
     "vitest": "^5.1.1"
   }
