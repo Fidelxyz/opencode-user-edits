@@ -1,0 +1,40 @@
+{
+  "name": "opencode-user-edits",
+  "version": "0.1.0",
+  "description": "Let the agent know what you edited",
+  "keywords": [
+    "opencode",
+    "plugin",
+    "diff",
+    "edit"
+  ],
+  "license": "MIT",
+  "author": "Fidel Yin <fidel.yin@hotmail.com>",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "@opencode/ai": "2.2.6",
+    "@opencode/client": "2.2.6",
+    "@opencode/plugin": "2.2.6",
+    "@opencode/schema": "2.2.6"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.5",
+    "@types/node": "^26.6.6",
+    "effect": "4.1.0",
+    "prettier": "^3.10.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}
