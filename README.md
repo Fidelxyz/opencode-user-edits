@@ -10,7 +10,7 @@ again and attaches the difference to your message.
 ## What the agent receives
 
 - The full diff when it is short (at most 50 lines and 4000 characters).
-- Otherwise a list of changed files with their status (`A` / `M` / `D` / `T`), up to 50 files.
+- Otherwise a list of changed files in `git diff --name-status` format, up to 50 files.
 
 When HEAD moved, for example after a commit or a branch switch, the agent also learns the old and new commits.
 

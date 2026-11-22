@@ -1,25 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { describeUserEdits } from "../src/report.ts";
-import type { FileChange, SnapshotStore, Worktree } from "../src/snapshot.ts";
+import type { SnapshotStore, Worktree } from "../src/snapshot.ts";
 
 const HEAD = "a".repeat(40);
 const WORKTREE: Worktree = { root: "/repo", commonDir: "/repo/.git" };
 
-function fakeStore(
-  changes: readonly FileChange[],
-  patch: string | undefined,
-): Pick<SnapshotStore, "changes" | "patch"> {
+function fakeStore(changes: readonly string[], patch: string | undefined): Pick<SnapshotStore, "changes" | "patch"> {
   return {
     changes: async () => changes,
     patch: async () => patch,
   };
 }
 
-function modified(count: number): FileChange[] {
-  return Array.from({ length: count }, (_, index) => ({ status: "M", path: `file-${index}.txt` }));
+function modified(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => `M\tfile-${index}.txt`);
 }
 
-function describeWith(changes: readonly FileChange[], patch: string | undefined, head = HEAD) {
+function describeWith(changes: readonly string[], patch: string | undefined, head = HEAD) {
   return describeUserEdits(
     fakeStore(changes, patch),
     WORKTREE,

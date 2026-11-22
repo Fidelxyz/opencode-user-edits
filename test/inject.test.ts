@@ -78,15 +78,12 @@ describe("formatUserEdits", () => {
     const text = formatUserEdits({
       kind: "files",
       root: "/repo",
-      files: [
-        { status: "M", path: "a.txt" },
-        { status: "D", path: "b.txt" },
-      ],
+      files: ["M\ta.txt", "D\tb.txt"],
       omitted: 3,
     });
 
-    expect(text).toContain("M a.txt");
-    expect(text).toContain("D b.txt");
+    expect(text).toContain("M\ta.txt");
+    expect(text).toContain("D\tb.txt");
     expect(text).toContain("... and 3 more files");
   });
 });

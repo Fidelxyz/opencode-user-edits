@@ -1,4 +1,4 @@
-import type { Baseline, FileChange, SnapshotStore, Worktree } from "./snapshot.ts";
+import type { Baseline, SnapshotStore, Worktree } from "./snapshot.ts";
 
 export const MAX_PATCH_LINES = 50;
 export const MAX_PATCH_CHARS = 4000;
@@ -16,7 +16,7 @@ export type UserEdits = {
   readonly headChange?: HeadChange;
 } & (
   | { readonly kind: "patch"; readonly patch: string }
-  | { readonly kind: "files"; readonly files: readonly FileChange[]; readonly omitted: number }
+  | { readonly kind: "files"; readonly files: readonly string[]; readonly omitted: number }
   | { readonly kind: "head" }
 );
 
@@ -32,7 +32,11 @@ export async function describeUserEdits(
   const changes = await store.changes(worktree, from.tree, to.tree);
   if (changes.length === 0) return headChange ? { root, headChange, kind: "head" } : undefined;
 
-  const patch = await store.patch(worktree, from.tree, to.tree, MAX_PATCH_CHARS);
+  // skip the costly diff when the patch cannot fit.
+  const patch =
+    changes.length * 2 > MAX_PATCH_LINES // Each file takes at least two patch lines.
+      ? undefined
+      : await store.patch(worktree, from.tree, to.tree, MAX_PATCH_CHARS);
   if (patch !== undefined && patch.split("\n").length - 1 <= MAX_PATCH_LINES) {
     return { root, headChange, kind: "patch", patch };
   }

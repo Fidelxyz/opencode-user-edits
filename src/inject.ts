@@ -49,7 +49,7 @@ export function formatUserEdits(edits: UserEdits): string {
       lines.push(edits.patch.trimEnd());
     } else {
       // edits.kind === "files"
-      lines.push(...edits.files.map((file) => `${file.status} ${file.path}`));
+      lines.push(...edits.files);
       if (edits.omitted > 0) lines.push(`... and ${edits.omitted} more files`);
     }
   }

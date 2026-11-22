@@ -9,7 +9,6 @@ import {
   findHead,
   findWorktree,
   promptBaseline,
-  type FileChange,
   type Worktree,
 } from "../src/snapshot.ts";
 import { createGitRepo, createStore, createTempDir } from "./fixtures.ts";
@@ -25,10 +24,6 @@ async function worktreeOf(root: string): Promise<Worktree> {
   if (!worktree) throw new Error(`${root} is not a git worktree`);
 
   return worktree;
-}
-
-function sorted(changes: readonly FileChange[]): FileChange[] {
-  return [...changes].sort((a, b) => a.path.localeCompare(b.path));
 }
 
 async function listFiles(dir: string): Promise<string[]> {
@@ -71,11 +66,50 @@ describe("SnapshotStore", () => {
     await repo.remove("b.txt");
     const after = await store.capture(worktree);
 
-    expect(sorted(await store.changes(worktree, before, after))).toEqual([
-      { status: "M", path: "a.txt" },
-      { status: "D", path: "b.txt" },
-      { status: "A", path: "c.txt" },
-    ]);
+    expect(await store.changes(worktree, before, after)).toEqual(["M\ta.txt", "D\tb.txt", "A\tc.txt"]);
+  });
+
+  it("lists a renamed file with its old path", async () => {
+    const repo = await createGitRepo();
+    await repo.write("old.txt", "same content\n");
+    const store = await createStore();
+    const worktree = await worktreeOf(repo.root);
+
+    const before = await store.capture(worktree);
+    await repo.remove("old.txt");
+    await repo.write("new.txt", "same content\n");
+    const after = await store.capture(worktree);
+
+    expect(await store.changes(worktree, before, after)).toEqual(["R100\told.txt\tnew.txt"]);
+  });
+
+  it("lists a path containing a newline on one quoted line", async () => {
+    const repo = await createGitRepo();
+    const store = await createStore();
+    const worktree = await worktreeOf(repo.root);
+
+    const before = await store.capture(worktree);
+    await repo.write("line\nbreak.txt", "x");
+    const after = await store.capture(worktree);
+
+    expect(await store.changes(worktree, before, after)).toEqual(['A\t"line\\nbreak.txt"']);
+  });
+
+  it("lists a rename as a deletion and an addition when base content is gone", async () => {
+    const repo = await createGitRepo();
+    await repo.write("old.txt", "line 1\nline 2\nline 3\n");
+    await repo.commit("add old");
+    const store = await createStore();
+    const worktree = await worktreeOf(repo.root);
+    const blob = await git(repo.root, "rev-parse", "HEAD:old.txt");
+
+    const before = await store.capture(worktree);
+    await repo.remove("old.txt");
+    await repo.write("new.txt", "line 1\nline 2\nline 3 edited\n");
+    const after = await store.capture(worktree);
+    await rm(join(repo.root, ".git/objects", blob.slice(0, 2), blob.slice(2)));
+
+    expect(await store.changes(worktree, before, after)).toEqual(["A\tnew.txt", "D\told.txt"]);
   });
 
   it("captures untracked files and honors .gitignore", async () => {
@@ -89,7 +123,7 @@ describe("SnapshotStore", () => {
     await repo.write("ignored.txt", "i");
     const after = await store.capture(worktree);
 
-    expect(await store.changes(worktree, before, after)).toEqual([{ status: "A", path: "untracked.txt" }]);
+    expect(await store.changes(worktree, before, after)).toEqual(["A\tuntracked.txt"]);
   });
 
   it("honors the repository info/exclude", async () => {
@@ -103,7 +137,7 @@ describe("SnapshotStore", () => {
     await repo.write("kept.txt", "k");
     const after = await store.capture(worktree);
 
-    expect(await store.changes(worktree, before, after)).toEqual([{ status: "A", path: "kept.txt" }]);
+    expect(await store.changes(worktree, before, after)).toEqual(["A\tkept.txt"]);
   });
 
   it("leaves the repository index and objects untouched", async () => {

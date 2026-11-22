@@ -31,19 +31,14 @@ export function promptBaseline(messageID: string): BaselineSlot {
   return { kind: "prompt", messageID };
 }
 
-export interface FileChange {
-  readonly status: "A" | "M" | "D" | "T";
-  /** Path relative to the worktree root. */
-  readonly path: string;
-}
-
 export interface SnapshotStore {
   capture(worktree: Worktree): Promise<TreeID>;
   saveBaseline(worktree: Worktree, sessionID: string, slot: BaselineSlot, baseline: Baseline): Promise<void>;
   readBaseline(worktree: Worktree, sessionID: string, slot: BaselineSlot): Promise<Baseline | undefined>;
   /** Deletes every baseline of the session, in all worktrees. */
   removeSessionBaselines(sessionID: string): Promise<void>;
-  changes(worktree: Worktree, from: TreeID, to: TreeID): Promise<readonly FileChange[]>;
+  /** `git diff --name-status` lines, relative to the worktree root. */
+  changes(worktree: Worktree, from: TreeID, to: TreeID): Promise<readonly string[]>;
   /** The unified diff; undefined when it exceeds maxChars or the base content is unavailable. */
   patch(worktree: Worktree, from: TreeID, to: TreeID, maxChars: number): Promise<string | undefined>;
 }
@@ -146,14 +141,16 @@ export function createSnapshotStore(dataDir: string): SnapshotStore {
 
     async changes(worktree, from, to) {
       const gitDir = storeGitDir(dataDir, worktree);
-      const { stdout } = await runGit(["diff-tree", "-r", "-z", "--name-status", "--no-renames", from, to], { gitDir });
+      const listChanges = (renames: string) =>
+        runGit(["diff-tree", "-r", "--name-status", renames, from, to], { gitDir });
 
-      const fields = stdout.split("\0");
-      const changes: FileChange[] = [];
-      for (let index = 0; index + 1 < fields.length; index += 2) {
-        changes.push({ status: fields[index] as FileChange["status"], path: fields[index + 1]! });
-      }
-      return changes;
+      // Rename detection reads file contents, which the repository may no longer have.
+      const { stdout } = await listChanges("-M").catch((error: unknown) => {
+        if (isMissingObjectError(error)) return listChanges("--no-renames");
+        throw error;
+      });
+
+      return stdout.split("\n").filter((line) => line !== "");
     },
 
     async patch(worktree, from, to, maxChars) {
@@ -164,6 +161,7 @@ export function createSnapshotStore(dataDir: string): SnapshotStore {
           "-r", // recurse
           "-p", // output a patch
           "-U1", // one context line
+          "-M", // show renames rather than full old and new contents
           "--irreversible-delete", // omit the contents of deleted files
           "--no-prefix", // show paths without the a/ and b/ prefixes
           from,
@@ -178,9 +176,7 @@ export function createSnapshotStore(dataDir: string): SnapshotStore {
         const patch = compactPatch(result.stdout);
         return patch.length > maxChars ? undefined : patch;
       } catch (error) {
-        if (error instanceof GitError && /unable to read|bad object|missing object/i.test(error.stderr)) {
-          return undefined;
-        }
+        if (isMissingObjectError(error)) return undefined;
         throw error;
       }
     },
@@ -199,6 +195,10 @@ function compactPatch(patch: string): string {
       return !(inFileHeader && /^(index |--- |\+\+\+ )/.test(line));
     })
     .join("\n");
+}
+
+function isMissingObjectError(error: unknown): boolean {
+  return error instanceof GitError && /unable to read|bad object|missing object/i.test(error.stderr);
 }
 
 function storeGitDir(dataDir: string, worktree: Worktree): string {
