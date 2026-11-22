@@ -13,7 +13,7 @@ importers:
         version: 2.3.2
       '@opencode/client':
         specifier: ^2.3.2
-        version: 2.3.2(effect@4.1.5)
+        version: 2.3.2(effect@4.1.0)
       '@opencode/plugin':
         specifier: ^2.3.2
         version: 2.3.2(@opentelemetry/semantic-conventions@1.45.0)(redis@6.3.1(@opentelemetry/api@1.9.0))(vite@8.3.8(@types/node@26.6.6))
@@ -28,8 +28,8 @@ importers:
         specifier: ^26.6.6
         version: 26.6.6
       effect:
-        specifier: ^4.1.5
-        version: 4.1.5
+        specifier: 4.1.0
+        version: 4.1.0
       prettier:
         specifier: ^3.10.1
         version: 3.10.1
@@ -953,9 +953,6 @@ packages:
 
   effect@4.1.0:
     resolution: {integrity: sha512-lGx2MJJyrXA8RZb2UpQ/0Nkb5Utaimby7oD92+18noBxLPE85IFOvptdzau8dvcxAOwfwHo9iqapbKeFzqQM/Q==}
-
-  effect@4.1.5:
-    resolution: {integrity: sha512-xyR20KhQI0vg2gD8ILUSQRTTESEYJ0JKdP+QD8J37xbwPTqXRxFM/l0+vUVD9fuSvoYruoTqyt33C4FZv1s4TQ==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -2172,13 +2169,6 @@ snapshots:
     optionalDependencies:
       effect: 4.1.0
 
-  '@opencode/client@2.3.2(effect@4.1.5)':
-    dependencies:
-      '@opencode/protocol': 2.3.2
-      '@opencode/schema': 2.3.2
-    optionalDependencies:
-      effect: 4.1.5
-
   '@opencode/plugin@2.3.2(@opentelemetry/semantic-conventions@1.45.0)(redis@6.3.1(@opentelemetry/api@1.9.0))(vite@8.3.8(@types/node@26.6.6))':
     dependencies:
       '@ai-sdk/provider': 3.0.8
@@ -2720,8 +2710,6 @@ snapshots:
       safe-buffer: 5.2.1
 
   effect@4.1.0: {}
-
-  effect@4.1.5: {}
 
   emoji-regex@8.0.0: {}
 
