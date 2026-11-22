@@ -43,7 +43,7 @@ export function formatUserEdits(edits: UserEdits): string {
   }
 
   if (edits.kind !== "head") {
-    lines.push("These files changed after the previous turn ended (by the user or their tools):");
+    lines.push("These files changed after the previous turn ended:");
 
     if (edits.kind === "patch") {
       lines.push(edits.patch.trimEnd());
