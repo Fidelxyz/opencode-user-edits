@@ -1,4 +1,7 @@
+import { SessionMetadata } from "@opencode/schema/session-metadata";
+import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
+import { attachUserEdits } from "../src/inject.ts";
 import { describeUserEdits } from "../src/report.ts";
 import type { SnapshotStore, Worktree } from "../src/snapshot.ts";
 
@@ -76,5 +79,15 @@ describe("describeUserEdits", () => {
       files: modified(50),
       omitted: 10,
     });
+  });
+
+  it.each([
+    { kind: "patch", changes: modified(1), patch: "diff --git a/a.txt b/a.txt\n-old\n+new\n" },
+    { kind: "files", changes: modified(2), patch: undefined },
+  ])("returns $kind edits encodable as session metadata", async ({ kind, changes, patch }) => {
+    const edits = await describeWith(changes, patch);
+
+    expect(edits?.kind).toBe(kind);
+    expect(() => Schema.encodeUnknownSync(SessionMetadata)(attachUserEdits(undefined, edits!))).not.toThrow();
   });
 });

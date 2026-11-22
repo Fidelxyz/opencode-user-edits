@@ -69,7 +69,7 @@ describe("formatUserEdits", () => {
   });
 
   it("names the HEAD move with short commits", () => {
-    const text = formatUserEdits({ ...PATCH_EDITS, headChange: { from: "a".repeat(40), to: undefined } });
+    const text = formatUserEdits({ ...PATCH_EDITS, headChange: { from: "a".repeat(40), to: null } });
 
     expect(text).toContain("HEAD moved from aaaaaaa to no HEAD");
   });

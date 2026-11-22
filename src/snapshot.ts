@@ -16,8 +16,8 @@ export type TreeID = string;
 /** The worktree state a session's later edits are measured against. */
 export interface Baseline {
   readonly tree: TreeID;
-  /** Commit HEAD pointed to; undefined in a repository without commits. */
-  readonly head: string | undefined;
+  /** Commit HEAD pointed to; null in a repository without commits. */
+  readonly head: string | null;
 }
 
 /** Where a session keeps a baseline. */
@@ -62,14 +62,14 @@ export async function findWorktree(directory: string): Promise<Worktree | undefi
   return { root, commonDir: isAbsolute(commonDir) ? commonDir : resolve(directory, commonDir) };
 }
 
-/** Resolves the commit HEAD points to; undefined when the repository has no commits yet. */
-export async function findHead(worktree: Worktree): Promise<string | undefined> {
+/** Resolves the commit HEAD points to; null when the repository has no commits yet. */
+export async function findHead(worktree: Worktree): Promise<string | null> {
   try {
     const { stdout } = await runGit(["rev-parse", "--verify", "--quiet", "HEAD"], { cwd: worktree.root });
     return stdout.trim();
   } catch (error) {
     // `--quiet` makes an unresolvable HEAD fail without any message.
-    if (error instanceof GitError && error.stderr.trim() === "") return undefined;
+    if (error instanceof GitError && error.stderr.trim() === "") return null;
     throw error;
   }
 }
@@ -96,7 +96,7 @@ export function createSnapshotStore(dataDir: string): SnapshotStore {
       const gitDir = storeGitDir(dataDir, worktree);
       const refs = baselineRefs(sessionID, slot);
 
-      if (baseline.head === undefined) await runGit(["update-ref", "-d", refs.head], { gitDir });
+      if (baseline.head === null) await runGit(["update-ref", "-d", refs.head], { gitDir });
       else await runGit(["update-ref", refs.head, baseline.head], { gitDir });
       await runGit(["update-ref", refs.tree, baseline.tree], { gitDir });
     },
@@ -117,7 +117,7 @@ export function createSnapshotStore(dataDir: string): SnapshotStore {
       );
 
       const tree = objects.get(refs.tree);
-      return tree === undefined ? undefined : { tree, head: objects.get(refs.head) };
+      return tree === undefined ? undefined : { tree, head: objects.get(refs.head) ?? null };
     },
 
     async removeSessionBaselines(sessionID) {

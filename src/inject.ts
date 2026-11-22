@@ -66,6 +66,6 @@ function escapeAttribute(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 }
 
-function shortCommitHash(commit: string | undefined): string {
-  return commit === undefined ? "no HEAD" : commit.slice(0, 7);
+function shortCommitHash(commit: string | null): string {
+  return commit === null ? "no HEAD" : commit.slice(0, 7);
 }

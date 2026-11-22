@@ -51,6 +51,15 @@ describe("findWorktree", () => {
   });
 });
 
+describe("findHead", () => {
+  it("returns null in a repository without commits", async () => {
+    const root = await createTempDir();
+    await git(root, "init", "-q");
+
+    expect(await findHead(await worktreeOf(root))).toBeNull();
+  });
+});
+
 describe("SnapshotStore", () => {
   it("lists added, modified and deleted files between captures", async () => {
     const repo = await createGitRepo();
@@ -203,7 +212,7 @@ describe("SnapshotStore", () => {
     const repo = await createGitRepo();
     const store = await createStore();
     const worktree = await worktreeOf(repo.root);
-    const baseline = { tree: await store.capture(worktree), head: undefined };
+    const baseline = { tree: await store.capture(worktree), head: null };
     await store.saveBaseline(worktree, "ses_1", CURRENT_BASELINE, baseline);
     await store.saveBaseline(worktree, "ses_1", promptBaseline("msg_1"), baseline);
 
@@ -217,7 +226,7 @@ describe("SnapshotStore", () => {
     const repo = await createGitRepo();
     const store = await createStore();
     const worktree = await worktreeOf(repo.root);
-    const baseline = { tree: await store.capture(worktree), head: undefined };
+    const baseline = { tree: await store.capture(worktree), head: null };
     await store.saveBaseline(worktree, "ses_10", CURRENT_BASELINE, baseline);
 
     await store.removeSessionBaselines("ses_1");

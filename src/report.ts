@@ -4,13 +4,13 @@ export const MAX_PATCH_LINES = 50;
 export const MAX_PATCH_CHARS = 4000;
 export const MAX_FILE_LINES = 50;
 
-/** HEAD commits before and after the change; undefined means a repository without commits. */
+/** HEAD commits before and after the change. */
 export interface HeadChange {
-  readonly from: string | undefined;
-  readonly to: string | undefined;
+  readonly from: Baseline["head"];
+  readonly to: Baseline["head"];
 }
 
-/** JSON-safe description of the changes made outside the agent, persisted in prompt metadata. */
+/** JSON value describing the changes made outside the agent, persisted in prompt metadata. */
 export type UserEdits = {
   readonly root: string;
   readonly headChange?: HeadChange;
@@ -26,11 +26,11 @@ export async function describeUserEdits(
   from: Baseline,
   to: Baseline,
 ): Promise<UserEdits | undefined> {
-  const root = worktree.root;
   const headChange = from.head === to.head ? undefined : { from: from.head, to: to.head };
+  const base = { root: worktree.root, ...(headChange && { headChange }) };
 
   const changes = await store.changes(worktree, from.tree, to.tree);
-  if (changes.length === 0) return headChange ? { root, headChange, kind: "head" } : undefined;
+  if (changes.length === 0) return headChange ? { ...base, kind: "head" } : undefined;
 
   // skip the costly diff when the patch cannot fit.
   const patch =
@@ -38,12 +38,11 @@ export async function describeUserEdits(
       ? undefined
       : await store.patch(worktree, from.tree, to.tree, MAX_PATCH_CHARS);
   if (patch !== undefined && patch.split("\n").length - 1 <= MAX_PATCH_LINES) {
-    return { root, headChange, kind: "patch", patch };
+    return { ...base, kind: "patch", patch };
   }
 
   return {
-    root,
-    headChange,
+    ...base,
     kind: "files",
     files: changes.slice(0, MAX_FILE_LINES),
     omitted: Math.max(0, changes.length - MAX_FILE_LINES),
