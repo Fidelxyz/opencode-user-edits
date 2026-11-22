@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, copyFile, mkdir, readdir, truncate, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 
@@ -37,11 +37,6 @@ export interface FileChange {
   readonly path: string;
 }
 
-export type Patch =
-  | { readonly kind: "complete"; readonly text: string }
-  | { readonly kind: "oversized" }
-  | { readonly kind: "unavailable" };
-
 export interface SnapshotStore {
   capture(worktree: Worktree): Promise<TreeID>;
   saveBaseline(worktree: Worktree, sessionID: string, slot: BaselineSlot, baseline: Baseline): Promise<void>;
@@ -49,7 +44,8 @@ export interface SnapshotStore {
   /** Deletes every baseline of the session, in all worktrees. */
   removeSessionBaselines(sessionID: string): Promise<void>;
   changes(worktree: Worktree, from: TreeID, to: TreeID): Promise<readonly FileChange[]>;
-  patch(worktree: Worktree, from: TreeID, to: TreeID, maxChars: number): Promise<Patch>;
+  /** The unified diff; undefined when it exceeds maxChars or the base content is unavailable. */
+  patch(worktree: Worktree, from: TreeID, to: TreeID, maxChars: number): Promise<string | undefined>;
 }
 
 export function snapshotDataDir(): string {
@@ -66,10 +62,7 @@ export async function findWorktree(directory: string): Promise<Worktree | undefi
     throw error;
   }
 
-  const [root, commonDir] = output.stdout.split("\n");
-  if (root === undefined || root === "" || commonDir === undefined || commonDir === "") {
-    throw new Error(`user-edits: unexpected git rev-parse output: ${JSON.stringify(output.stdout)}`);
-  }
+  const [root, commonDir] = output.stdout.trimEnd().split("\n") as [string, string];
 
   return { root, commonDir: isAbsolute(commonDir) ? commonDir : resolve(directory, commonDir) };
 }
@@ -168,10 +161,10 @@ export function createSnapshotStore(dataDir: string): SnapshotStore {
       try {
         const args = ["diff-tree", "-r", "-p", "--no-color", "--no-ext-diff", "--no-renames", from, to];
         const result = await runGit(args, { gitDir, maxOutput: maxChars });
-        return result.truncated ? { kind: "oversized" } : { kind: "complete", text: result.stdout };
+        return result.truncated ? undefined : result.stdout;
       } catch (error) {
         if (error instanceof GitError && /unable to read|bad object|missing object/i.test(error.stderr)) {
-          return { kind: "unavailable" };
+          return undefined;
         }
         throw error;
       }
@@ -201,25 +194,20 @@ async function isStoreInitialized(gitDir: string): Promise<boolean> {
 async function prepareStoreGitDir(gitDir: string, worktree: Worktree): Promise<void> {
   if (!(await isStoreInitialized(gitDir))) {
     // Every step tolerates an earlier, interrupted run.
-    await mkdir(gitDir, { recursive: true });
     await runGit(["init", "--quiet", "--bare", gitDir], {});
     await runGit(["config", "core.bare", "false"], { gitDir });
     await runGit(["config", "gc.pruneExpire", "1.hour.ago"], { gitDir });
-    await mkdir(join(gitDir, "objects", "info"), { recursive: true });
     await writeFile(storeAlternatesFile(gitDir), `${join(worktree.commonDir, "objects")}\n`);
   }
 
-  const storeExclude = join(gitDir, "info", "exclude");
+  const exclude = await readFile(join(worktree.commonDir, "info", "exclude"), "utf8").catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return "";
+      throw error;
+    },
+  );
   await mkdir(join(gitDir, "info"), { recursive: true });
-  try {
-    await copyFile(join(worktree.commonDir, "info", "exclude"), storeExclude);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    await truncate(storeExclude, 0).catch(async (truncateError: NodeJS.ErrnoException) => {
-      if (truncateError.code !== "ENOENT") throw truncateError;
-      await writeFile(storeExclude, "");
-    });
-  }
+  await writeFile(join(gitDir, "info", "exclude"), exclude);
 }
 
 function sessionRefsPrefix(sessionID: string): string {
@@ -240,8 +228,6 @@ const GIT_LOCATION_ENV = [
   "GIT_OBJECT_DIRECTORY",
   "GIT_ALTERNATE_OBJECT_DIRECTORIES",
   "GIT_COMMON_DIR",
-  "GIT_NAMESPACE",
-  "GIT_PREFIX",
   "GIT_CEILING_DIRECTORIES",
 ];
 

@@ -215,8 +215,7 @@ describe("SnapshotStore", () => {
 
     const patch = await store.patch(worktree, before, after, 10_000);
 
-    expect(patch.kind).toBe("complete");
-    expect(patch.kind === "complete" && patch.text).toContain("+new");
+    expect(patch).toContain("+new");
   });
 
   it("reports an oversized patch beyond maxChars", async () => {
@@ -228,7 +227,7 @@ describe("SnapshotStore", () => {
     await repo.write("big.txt", "line\n".repeat(1000));
     const after = await store.capture(worktree);
 
-    expect(await store.patch(worktree, before, after, 100)).toEqual({ kind: "oversized" });
+    expect(await store.patch(worktree, before, after, 100)).toBeUndefined();
   });
 
   it("reports an unavailable patch when base content is gone", async () => {
@@ -244,6 +243,6 @@ describe("SnapshotStore", () => {
     const after = await store.capture(worktree);
     await rm(join(repo.root, ".git/objects", blob.slice(0, 2), blob.slice(2)));
 
-    expect(await store.patch(worktree, before, after, 10_000)).toEqual({ kind: "unavailable" });
+    expect(await store.patch(worktree, before, after, 10_000)).toBeUndefined();
   });
 });

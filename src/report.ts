@@ -27,20 +27,19 @@ export async function describeUserEdits(
   to: Baseline,
 ): Promise<UserEdits | undefined> {
   const root = worktree.root;
-  const headChange: { headChange?: HeadChange } =
-    from.head === to.head ? {} : { headChange: { from: from.head, to: to.head } };
+  const headChange = from.head === to.head ? undefined : { from: from.head, to: to.head };
 
   const changes = await store.changes(worktree, from.tree, to.tree);
-  if (changes.length === 0) return headChange.headChange ? { root, ...headChange, kind: "head" } : undefined;
+  if (changes.length === 0) return headChange ? { root, headChange, kind: "head" } : undefined;
 
   const patch = await store.patch(worktree, from.tree, to.tree, MAX_PATCH_CHARS);
-  if (patch.kind === "complete" && patch.text.split("\n").length - 1 <= MAX_PATCH_LINES) {
-    return { root, ...headChange, kind: "patch", patch: patch.text };
+  if (patch !== undefined && patch.split("\n").length - 1 <= MAX_PATCH_LINES) {
+    return { root, headChange, kind: "patch", patch };
   }
 
   return {
     root,
-    ...headChange,
+    headChange,
     kind: "files",
     files: changes.slice(0, MAX_FILE_LINES),
     omitted: Math.max(0, changes.length - MAX_FILE_LINES),
