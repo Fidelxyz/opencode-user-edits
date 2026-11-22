@@ -159,9 +159,24 @@ export function createSnapshotStore(dataDir: string): SnapshotStore {
     async patch(worktree, from, to, maxChars) {
       const gitDir = storeGitDir(dataDir, worktree);
       try {
-        const args = ["diff-tree", "-r", "-p", "--no-color", "--no-ext-diff", "--no-renames", from, to];
-        const result = await runGit(args, { gitDir, maxOutput: maxChars });
-        return result.truncated ? undefined : result.stdout;
+        const args = [
+          "diff-tree",
+          "-r", // recurse
+          "-p", // output a patch
+          "-U1", // one context line
+          "--irreversible-delete", // omit the contents of deleted files
+          "--no-prefix", // show paths without the a/ and b/ prefixes
+          from,
+          to,
+        ];
+        const result = await runGit(args, {
+          gitDir,
+          maxOutput: maxChars * 2, // The headroom covers the header lines compaction removes.
+        });
+        if (result.truncated) return undefined;
+
+        const patch = compactPatch(result.stdout);
+        return patch.length > maxChars ? undefined : patch;
       } catch (error) {
         if (error instanceof GitError && /unable to read|bad object|missing object/i.test(error.stderr)) {
           return undefined;
@@ -170,6 +185,20 @@ export function createSnapshotStore(dataDir: string): SnapshotStore {
       }
     },
   };
+}
+
+/** Drops file header lines that repeat the `diff --git` line's paths or name blob hashes. */
+function compactPatch(patch: string): string {
+  let inFileHeader = false;
+  return patch
+    .split("\n")
+    .filter((line) => {
+      if (line.startsWith("diff --git ")) inFileHeader = true;
+      else if (line.startsWith("@@ ")) inFileHeader = false;
+
+      return !(inFileHeader && /^(index |--- |\+\+\+ )/.test(line));
+    })
+    .join("\n");
 }
 
 function storeGitDir(dataDir: string, worktree: Worktree): string {

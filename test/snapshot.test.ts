@@ -202,9 +202,9 @@ describe("SnapshotStore", () => {
     expect(new Set(trees).size).toBe(1);
   });
 
-  it("returns the complete patch within maxChars", async () => {
+  it("returns a patch without redundant file headers", async () => {
     const repo = await createGitRepo();
-    await repo.write("a.txt", "old\n");
+    await repo.write("a.txt", "-- old\n");
     await repo.commit("add a");
     const store = await createStore();
     const worktree = await worktreeOf(repo.root);
@@ -213,9 +213,25 @@ describe("SnapshotStore", () => {
     await repo.write("a.txt", "new\n");
     const after = await store.capture(worktree);
 
+    expect(await store.patch(worktree, before, after, 10_000)).toBe(
+      "diff --git a.txt a.txt\n@@ -1 +1 @@\n--- old\n+new\n",
+    );
+  });
+
+  it("omits the contents of deleted files from the patch", async () => {
+    const repo = await createGitRepo();
+    await repo.write("gone.txt", "secret contents\n");
+    const store = await createStore();
+    const worktree = await worktreeOf(repo.root);
+
+    const before = await store.capture(worktree);
+    await repo.remove("gone.txt");
+    const after = await store.capture(worktree);
+
     const patch = await store.patch(worktree, before, after, 10_000);
 
-    expect(patch).toContain("+new");
+    expect(patch).toContain("deleted file mode");
+    expect(patch).not.toContain("secret contents");
   });
 
   it("reports an oversized patch beyond maxChars", async () => {
