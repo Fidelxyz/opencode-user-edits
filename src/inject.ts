@@ -58,14 +58,14 @@ export function formatUserEdits(edits: UserEdits): string {
   return lines.join("\n");
 }
 
+function readUserEdits(metadata: Record<string, unknown> | undefined): UserEdits | undefined {
+  return metadata?.[USER_EDITS_METADATA_KEY] as UserEdits | undefined;
+}
+
 function escapeAttribute(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 }
 
 function shortCommitHash(commit: string | undefined): string {
   return commit === undefined ? "no HEAD" : commit.slice(0, 7);
-}
-
-function readUserEdits(metadata: Record<string, unknown> | undefined): UserEdits | undefined {
-  return metadata?.[USER_EDITS_METADATA_KEY] as UserEdits | undefined;
 }
